@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Signing in…</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#0b1020; color:#e5e7eb; }
+      .wrap { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+      .card { width: min(560px, 100%); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 18px 18px; }
+      .title { font-size: 16px; font-weight: 600; margin: 0 0 10px 0; }
+      .msg { font-size: 13px; opacity: 0.9; margin: 0; line-height: 1.35; white-space: pre-wrap; }
+      .muted { opacity: 0.7; }
+    </style>
+    <!-- Firebase compat SDKs (simple in standalone HTML) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1 class="title">Signing you in…</h1>
+        <p id="msg" class="msg muted">Preparing…</p>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const el = document.getElementById('msg');
+        const say = (t) => { try { el.textContent = String(t || ''); } catch {} };
+
+        const FLOW_TTL_MS = 2 * 60 * 1000;
+
+        function qs(name) {
+          try {
+            const u = new URL(window.location.href);
+            return u.searchParams.get(name);
+          } catch {
+            return null;
+          }
+        }
+
+        function safeSameOriginUrl(raw, fallback) {
+          const fb = typeof fallback === 'string' && fallback.trim() ? fallback.trim() : '/';
+          try {
+            const u = new URL(String(raw || ''), window.location.href);
+            if (u.origin !== window.location.origin) return fb;
+            if (u.pathname.startsWith('/auth/')) return fb;
+            return u.toString();
+          } catch {
+            return fb;
+          }
+        }
+
+        const returnTo = safeSameOriginUrl(qs('returnTo') || '/', '/');
+        const flowId = (qs('flowId') || '').trim() || 'default';
+        const attemptKey = 'fb_redirect_attempt:' + flowId;
+
+        // Firebase config is public; pass it via query params.
+        const cfg = {
+          apiKey: qs('apiKey') || '',
+          authDomain: qs('authDomain') || '',
+          projectId: qs('projectId') || '',
+          appId: qs('appId') || '',
+          storageBucket: qs('storageBucket') || '',
+          messagingSenderId: qs('messagingSenderId') || '',
+        };
+
+        const scopesRaw = (qs('scopes') || '').trim();
+        const prompt = (qs('prompt') || 'select_account').trim();
+        const loginHint = (qs('login_hint') || '').trim();
+
+        const missing = Object.entries(cfg).filter(([_, v]) => !String(v || '').trim()).map(([k]) => k);
+        if (missing.length) {
+          say('Firebase is not configured. Missing: ' + missing.join(', ') + '\n\nReturn: ' + returnTo);
+          return;
+        }
+
+        try {
+          firebase.initializeApp(cfg);
+        } catch (e) {
+          // ignore "already exists" in rare cases
+        }
+
+        const auth = firebase.auth();
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {
+          return auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(() => {
+            return auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+          });
+        }).finally(async () => {
+          const provider = new firebase.auth.GoogleAuthProvider();
+
+          if (scopesRaw) {
+            for (const s of scopesRaw.split(' ').map((x) => x.trim()).filter(Boolean)) {
+              provider.addScope(s);
+            }
+          }
+
+          const params = { prompt: prompt || 'select_account' };
+          if (loginHint) params.login_hint = loginHint;
+          provider.setCustomParameters(params);
+
+          say('Completing sign-in…');
+          try {
+            const rr = await auth.getRedirectResult();
+            if (rr && rr.user) {
+              try { sessionStorage.removeItem(attemptKey); } catch {}
+              say('Signed in. Returning…');
+              try { window.location.replace(returnTo); } catch { window.location.href = returnTo; }
+              return;
+            }
+          } catch (e) {
+            const code = e && e.code ? String(e.code) : '';
+            const msg = e && e.message ? String(e.message) : 'Sign-in failed';
+            say(msg + (code ? ' (' + code + ')' : '') + '\n\nReturn: ' + returnTo);
+            return;
+          }
+
+          // Sometimes getRedirectResult() returns null but the user is already signed in.
+          try {
+            const u = auth.currentUser;
+            if (u) {
+              try { sessionStorage.removeItem(attemptKey); } catch {}
+              say('Signed in. Returning…');
+              try { window.location.replace(returnTo); } catch { window.location.href = returnTo; }
+              return;
+            }
+          } catch {
+            // ignore
+          }
+
+          // Some browsers take a moment to hydrate auth state after redirect.
+          // Wait briefly for onAuthStateChanged before declaring failure.
+          try {
+            const user = await new Promise((resolve) => {
+              let done = false;
+              const timeout = window.setTimeout(() => {
+                if (done) return;
+                done = true;
+                resolve(null);
+              }, 2500);
+
+              const unsub = auth.onAuthStateChanged((u) => {
+                if (done) return;
+                done = true;
+                try { window.clearTimeout(timeout); } catch {}
+                try { unsub && unsub(); } catch {}
+                resolve(u || null);
+              });
+            });
+
+            if (user) {
+              try { sessionStorage.removeItem(attemptKey); } catch {}
+              say('Signed in. Returning…');
+              try { window.location.replace(returnTo); } catch { window.location.href = returnTo; }
+              return;
+            }
+          } catch {
+            // ignore
+          }
+
+          // Loop guard: if we already attempted redirect recently and still have no result,
+          // do NOT keep bouncing between Google and this page.
+          try {
+            const raw = sessionStorage.getItem(attemptKey);
+            if (raw) {
+              const prev = JSON.parse(raw);
+              const lastTs = Number(prev && prev.ts ? prev.ts : 0);
+              const count = Number(prev && prev.count ? prev.count : 0);
+              if (count >= 1 && lastTs && (Date.now() - lastTs) < FLOW_TTL_MS) {
+                say(
+                  'Sign-in did not complete (no redirect result).\n' +
+                  'This usually means storage/cookies are blocked or the domain is not authorized.\n\n' +
+                  'Please return to the app and try again.\n\n' +
+                  'Return: ' + returnTo
+                );
+                return;
+              }
+            }
+          } catch {
+            // ignore
+          }
+
+          try {
+            sessionStorage.setItem(attemptKey, JSON.stringify({ ts: Date.now(), count: 1 }));
+          } catch {
+            // ignore
+          }
+
+          say('Redirecting to Google…');
+          try {
+            await auth.signInWithRedirect(provider);
+          } catch (e) {
+            const code = e && e.code ? String(e.code) : '';
+            const msg = e && e.message ? String(e.message) : 'Sign-in failed to start';
+            say(msg + (code ? ' (' + code + ')' : '') + '\n\nReturn: ' + returnTo);
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

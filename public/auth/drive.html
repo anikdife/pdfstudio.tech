@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Google Drive Sign-in</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      }
+      body {
+        margin: 0;
+        padding: 22px;
+        background: #0b1020;
+        color: rgba(255, 255, 255, 0.9);
+      }
+      .card {
+        max-width: 520px;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      }
+      h1 {
+        font-size: 16px;
+        margin: 0 0 10px 0;
+        letter-spacing: 0.2px;
+      }
+      p {
+        margin: 0 0 12px 0;
+        font-size: 13px;
+        line-height: 1.4;
+        opacity: 0.92;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+        opacity: 0.95;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-top: 14px;
+      }
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-weight: 600;
+        cursor: pointer;
+        background: #22c55e;
+        color: #061016;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .secondary {
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.9);
+      }
+      .status {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        font-size: 12px;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1 id="title">Connect Google Drive</h1>
+      <p id="desc">
+        This window completes Google sign-in in a way that remains compatible with
+        <code>SharedArrayBuffer</code> isolation in the main editor.
+      </p>
+
+      <div class="row">
+        <button id="btn" disabled>Continue with Google</button>
+        <button id="cancel" class="secondary">Cancel</button>
+      </div>
+
+      <div id="status" class="status">Loading Google Identity Services…</div>
+    </div>
+
+    <script>
+      (function () {
+        const params = new URLSearchParams(location.search);
+        const mode = (params.get('mode') || '').trim();
+        const req = params.get('req') || '';
+        const clientId = params.get('client_id') || '';
+        const scope = params.get('scope') || '';
+        const prompt = params.get('prompt') || 'consent';
+
+        try {
+          const titleEl = document.getElementById('title');
+          const descEl = document.getElementById('desc');
+          if (mode === 'firebase') {
+            if (titleEl) titleEl.textContent = 'Sign in with Google';
+            if (descEl) descEl.innerHTML =
+              'This window signs you into the app in a way that remains compatible with ' +
+              '<code>SharedArrayBuffer</code> isolation in the main editor.';
+          }
+        } catch {
+          // ignore
+        }
+
+        const statusEl = document.getElementById('status');
+        const btn = document.getElementById('btn');
+        const cancelBtn = document.getElementById('cancel');
+
+        const bc = new BroadcastChannel('xpdf:drive:auth');
+        const LS_KEY = 'xpdf:drive:auth:bridge:' + req;
+
+        function post(type, payload) {
+          const msg = Object.assign({ type, req }, payload || {});
+          // Primary: BroadcastChannel (fast when available in same agent cluster)
+          try { bc.postMessage(msg); } catch {}
+
+          // Secondary: postMessage to opener (works even when storage events are delayed)
+          try {
+            if (window.opener && typeof window.opener.postMessage === 'function') {
+              window.opener.postMessage(msg, window.location.origin);
+            }
+          } catch {}
+
+          // Fallback: localStorage (works across COOP/COEP browsing-context-group boundaries)
+          try {
+            localStorage.setItem(LS_KEY, JSON.stringify(msg));
+          } catch {}
+        }
+
+        function setStatus(msg) {
+          statusEl.textContent = String(msg || '');
+        }
+
+        function closeSoon() {
+          try { bc.close(); } catch {}
+          window.setTimeout(() => {
+            try { window.close(); } catch {}
+          }, 50);
+        }
+
+        if (!req || !clientId || !scope) {
+          setStatus('Missing required parameters.\n' +
+            'Expected: req, client_id, scope');
+          post('xpdf-drive-auth-error', { error: 'missing_params' });
+        }
+
+        cancelBtn.addEventListener('click', () => {
+          post('xpdf-drive-auth-cancel', { error: 'user_cancel' });
+          closeSoon();
+        });
+
+        function loadScript() {
+          return new Promise((resolve, reject) => {
+            const existing = document.querySelector('script[data-gis-client="1"]');
+            if (existing && window.google && window.google.accounts && window.google.accounts.oauth2) {
+              resolve();
+              return;
+            }
+            const s = document.createElement('script');
+            s.src = 'https://accounts.google.com/gsi/client';
+            s.async = true;
+            s.defer = true;
+            s.dataset.gisClient = '1';
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error('Failed to load Google Identity Services'));
+            document.head.appendChild(s);
+          });
+        }
+
+        let tokenClient = null;
+
+        async function init() {
+          try {
+            await loadScript();
+            if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
+              throw new Error('Google Identity Services is not available');
+            }
+
+            tokenClient = window.google.accounts.oauth2.initTokenClient({
+              client_id: clientId,
+              scope,
+              callback: () => {},
+            });
+
+            setStatus('Ready. Click “Continue with Google”.');
+            btn.disabled = false;
+          } catch (e) {
+            setStatus(String(e && e.message ? e.message : e));
+            post('xpdf-drive-auth-error', { error: e && e.message ? e.message : 'init_failed' });
+          }
+        }
+
+        btn.addEventListener('click', () => {
+          if (!tokenClient) return;
+          btn.disabled = true;
+          setStatus('Waiting for Google…');
+
+          tokenClient.callback = (resp) => {
+            if (resp && resp.error) {
+              const errMsg = String(resp.error);
+              setStatus('Google sign-in failed: ' + errMsg);
+              post('xpdf-drive-auth-error', { error: errMsg });
+              closeSoon();
+              return;
+            }
+
+            const accessToken = String((resp && resp.access_token) || '').trim();
+            const expiresIn = Number(resp && resp.expires_in);
+
+            if (!accessToken) {
+              setStatus('Google returned no access token.');
+              post('xpdf-drive-auth-error', { error: 'no_access_token' });
+              closeSoon();
+              return;
+            }
+
+            post('xpdf-drive-auth-success', {
+              accessToken,
+              expiresIn: Number.isFinite(expiresIn) ? expiresIn : null,
+            });
+
+            setStatus('Connected. You can close this window.');
+            closeSoon();
+          };
+
+          try {
+            tokenClient.requestAccessToken({ prompt: prompt || '' });
+          } catch (e) {
+            setStatus(String(e && e.message ? e.message : e));
+            post('xpdf-drive-auth-error', { error: e && e.message ? e.message : 'request_failed' });
+            closeSoon();
+          }
+        });
+
+        init();
+      })();
+    </script>
+  </body>
+</html>

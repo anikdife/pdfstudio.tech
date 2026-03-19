@@ -1,0 +1,1428 @@
+/* Premium book-style UI for the existing InfoBook (page-turn version). */
+
+.infoBook-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+
+  background: rgba(10, 12, 16, 0.55);
+  backdrop-filter: blur(10px);
+}
+
+.infoBook-backdrop.infoBook-closed {
+  pointer-events: none;
+  opacity: 0;
+}
+
+.infoBook-container {
+  position: relative;
+  width: min(900px, 96vw);
+  height: min(580px, 84vh);
+  animation: infoBook-open 220ms ease-out both;
+}
+
+.infoBook-container.infoBook-closing {
+  animation: infoBook-close 180ms ease-in both;
+}
+
+.infoBook-close {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(18, 22, 30, 0.65);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.40),
+    0 0 0 1px rgba(0, 0, 0, 0.20) inset;
+}
+
+.infoBook-close:hover {
+  background: rgba(18, 22, 30, 0.78);
+}
+
+.infoBook-book {
+  position: relative;
+  width: 100%;
+  height: 100%;
+
+  border-radius: 16px;
+  transform-style: preserve-3d;
+  perspective: 1400px;
+
+  box-shadow:
+    0 26px 80px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+.infoBook-book::before {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border-radius: 14px;
+  background: radial-gradient(1200px 520px at 50% 20%, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+
+.infoBook-spread {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.infoBook-gutter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 16px;
+  transform: translateX(-50%);
+  background: linear-gradient(to right,
+    rgba(0, 0, 0, 0.18),
+    rgba(0, 0, 0, 0.06),
+    rgba(255, 255, 255, 0.04),
+    rgba(0, 0, 0, 0.08)
+  );
+  pointer-events: none;
+}
+
+.infoBook-page {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 12px;
+  margin: 10px;
+  background:
+    radial-gradient(900px 600px at 10% 10%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.02)),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.05) 2px, rgba(0,0,0,0.01) 3px, rgba(0,0,0,0.01) 6px),
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.02));
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* Full-page ambient glow for paper pages (soft, multi-point) */
+.infoBook-page.infoBook-paper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(900px 520px at 18% 18%, rgba(56, 189, 248, 0.18), transparent 62%),
+    radial-gradient(880px 520px at 82% 16%, rgba(168, 85, 247, 0.14), transparent 64%),
+    radial-gradient(980px 640px at 50% 60%, rgba(251, 191, 36, 0.22), transparent 70%),
+    radial-gradient(820px 520px at 22% 86%, rgba(14, 165, 233, 0.12), transparent 66%),
+    radial-gradient(900px 620px at 88% 84%, rgba(245, 158, 11, 0.12), transparent 72%);
+  opacity: 0.95;
+  filter: blur(0.4px) saturate(1.05);
+}
+
+.infoBook-page.infoBook-paper {
+  color: rgba(18, 22, 30, 0.92);
+  background:
+    radial-gradient(980px 760px at 20% 10%, rgba(255, 255, 255, 0.92), rgba(245, 245, 245, 0.86)),
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.03), rgba(0,0,0,0.03) 1px, rgba(255,255,255,0) 2px, rgba(255,255,255,0) 6px),
+    linear-gradient(180deg, rgba(255,255,255,0.86), rgba(238,238,238,0.76));
+  border: 1px solid rgba(0, 0, 0, 0.10);
+}
+
+.infoBook-page::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 18px;
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.infoBook-page.infoBook-left::after {
+  right: 0;
+  background: radial-gradient(18px 70% at 100% 50%, rgba(0,0,0,0.16), rgba(0,0,0,0));
+}
+
+.infoBook-page.infoBook-right::after {
+  left: 0;
+  background: radial-gradient(18px 70% at 0% 50%, rgba(0,0,0,0.16), rgba(0,0,0,0));
+}
+
+.infoBook-pageContent {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  padding: 22px 20px;
+  overflow: auto;
+  /* Book-like typography base (scoped to InfoBook only). */
+  font-family: ui-serif, Georgia, 'Times New Roman', Times, serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-kerning: normal;
+}
+
+/* SVG watermark rendered via Logo.tsx */
+.infoBook-watermark {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.24;
+  transform: rotate(-10deg);
+  filter: grayscale(0.18) contrast(1.08) saturate(0.95);
+}
+
+.infoBook-watermark::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(680px 420px at 50% 56%, rgba(251, 191, 36, 0.30), transparent 66%),
+    radial-gradient(980px 680px at 50% 58%, rgba(245, 158, 11, 0.18), transparent 74%);
+  opacity: 0.60;
+  pointer-events: none;
+}
+
+.infoBook-watermarkSvg {
+  width: min(660px, 92%);
+  height: auto;
+  opacity: 0.95;
+  filter:
+    drop-shadow(0 0 10px rgba(251, 191, 36, 0.42))
+    drop-shadow(0 0 30px rgba(245, 158, 11, 0.24))
+    drop-shadow(0 0 56px rgba(56, 189, 248, 0.10));
+}
+
+.infoBook-watermarkCover {
+  opacity: 0.22;
+  mix-blend-mode: overlay;
+  filter: grayscale(0.35) contrast(1.1) brightness(1.15) saturate(0.9);
+  transform: rotate(-14deg);
+}
+
+.infoBook-watermarkCover::before {
+  background:
+    radial-gradient(560px 360px at 50% 60%, rgba(251, 191, 36, 0.34), transparent 64%),
+    radial-gradient(900px 620px at 50% 62%, rgba(245, 158, 11, 0.22), transparent 72%);
+  opacity: 0.75;
+}
+
+.infoBook-pageH1 {
+  font-family: ui-serif, Georgia, 'Times New Roman', Times, serif;
+  font-size: 30px;
+  letter-spacing: 0.2px;
+  margin: 2px 0 6px;
+}
+
+.infoBook-pageHeader {
+  margin: 0 0 14px;
+}
+
+.infoBook-pageOrnament {
+  height: 1px;
+  margin-top: 12px;
+  background:
+    radial-gradient(260px 1px at 50% 50%, rgba(0,0,0,0.26), rgba(0,0,0,0)),
+    linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.18), rgba(0,0,0,0));
+  opacity: 0.85;
+}
+
+.infoBook-pageSub {
+  font-size: 12px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  opacity: 0.68;
+  margin: 0;
+}
+
+.infoBook-pageBody {
+  font-family: ui-serif, Georgia, 'Times New Roman', Times, serif;
+  font-size: 15px;
+  line-height: 1.65;
+  letter-spacing: 0.1px;
+  color: rgba(18, 22, 30, 0.92);
+  text-align: justify;
+  hyphens: auto;
+}
+
+.infoBook-pageBody p {
+  margin: 10px 0;
+}
+
+.infoBook-pageBody b,
+.infoBook-pageBody strong {
+  font-weight: 700;
+}
+
+.infoBook-pageBody code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.92em;
+  padding: 0.05em 0.35em;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.10);
+}
+
+.infoBook-pageBody ul,
+.infoBook-pageBody ol {
+  padding-left: 20px;
+  margin: 12px 0;
+}
+
+.infoBook-pageBody li {
+  margin: 8px 0;
+}
+
+.infoBook-callout {
+  margin-top: 14px;
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.35) inset;
+  font-style: italic;
+}
+
+.infoBook-diagram {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.infoBook-diagramBox {
+  border-radius: 14px;
+  border: 1px dashed rgba(0, 0, 0, 0.22);
+  padding: 14px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.55);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
+  font-size: 12px;
+  letter-spacing: 0.3px;
+}
+
+.infoBook-diagramArrow {
+  opacity: 0.6;
+  font-size: 18px;
+}
+
+.infoBook-screenshotPlaceholder {
+  margin-top: 14px;
+  height: 160px;
+  border-radius: 14px;
+  border: 1px dashed rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.52);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+/* TOC */
+.infoBook-toc {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+}
+
+.infoBook-tocItem {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: baseline;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  font-family: ui-serif, Georgia, 'Times New Roman', Times, serif;
+}
+
+.infoBook-tocItem:hover {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.infoBook-tocDots {
+  height: 1px;
+  background: repeating-linear-gradient(to right, rgba(0,0,0,0.22) 0 6px, rgba(0,0,0,0) 6px 12px);
+  align-self: center;
+  transform: translateY(-2px);
+}
+
+.infoBook-tocTitle {
+  font-weight: 650;
+  letter-spacing: 0.15px;
+}
+
+.infoBook-tocPage {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+/* Paper page footer (page numbers) */
+.infoBook-pageFooter {
+  position: absolute;
+  bottom: 10px;
+  z-index: 3;
+  font-family: ui-serif, Georgia, 'Times New Roman', Times, serif;
+  font-size: 12px;
+  letter-spacing: 0.8px;
+  color: rgba(18, 22, 30, 0.55);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
+  user-select: none;
+  pointer-events: none;
+}
+
+.infoBook-pageFooter.infoBook-pageFooter-left {
+  left: 18px;
+}
+
+.infoBook-pageFooter.infoBook-pageFooter-right {
+  right: 18px;
+}
+
+/* Cover */
+.infoBook-cover {
+  position: relative;
+  height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  background:
+    radial-gradient(1200px 680px at 10% 10%, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0)),
+    linear-gradient(135deg, rgba(18, 30, 55, 0.96), rgba(10, 12, 18, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.infoBook-coverSpread {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+.infoBook-coverBlank {
+  position: relative;
+  height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  background:
+    radial-gradient(980px 760px at 20% 10%, rgba(255, 255, 255, 0.92), rgba(245, 245, 245, 0.86)),
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.03), rgba(0,0,0,0.03) 1px, rgba(255,255,255,0) 2px, rgba(255,255,255,0) 6px),
+    linear-gradient(180deg, rgba(255,255,255,0.86), rgba(238,238,238,0.76));
+}
+
+.infoBook-coverTitleMetal {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.96), rgba(56, 189, 248, 0.92), rgba(168, 85, 247, 0.90));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.25);
+}
+
+.infoBook-coverGlint {
+  height: 1px;
+  margin-top: 12px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0), rgba(56, 189, 248, 0.85), rgba(56, 189, 248, 0));
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.40);
+  opacity: 0.9;
+}
+
+.infoBook-coverCorners {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.infoBook-coverCorners::before,
+.infoBook-coverCorners::after {
+  content: '';
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border: 1px solid rgba(255,255,255,0.18);
+  opacity: 0.55;
+}
+
+.infoBook-coverCorners::before {
+  left: 18px;
+  top: 18px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.infoBook-coverCorners::after {
+  right: 18px;
+  bottom: 18px;
+  border-left: none;
+  border-top: none;
+}
+
+.infoBook-verticalCenter {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.infoBook-dropcap {
+  float: left;
+  font-size: 48px;
+  line-height: 42px;
+  padding-right: 10px;
+  margin-top: 4px;
+  font-weight: 700;
+  color: rgba(18, 22, 30, 0.92);
+}
+
+.infoBook-illustrationCard {
+  margin: 10px 0 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.75);
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.10);
+}
+
+.infoBook-illustrationScene {
+  position: relative;
+  height: 150px;
+  border-radius: 12px;
+  background: radial-gradient(420px 220px at 30% 20%, rgba(56, 189, 248, 0.20), rgba(255,255,255,0)),
+    radial-gradient(420px 220px at 70% 70%, rgba(245, 158, 11, 0.18), rgba(255,255,255,0));
+  border: 1px dashed rgba(0,0,0,0.16);
+  overflow: hidden;
+}
+
+.infoBook-illusLaptop {
+  position: absolute;
+  left: 22px;
+  bottom: 22px;
+  width: 140px;
+  height: 90px;
+  border-radius: 10px;
+  border: 2px solid rgba(0,0,0,0.18);
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(245,245,245,0.72));
+}
+
+.infoBook-illusPdf {
+  position: absolute;
+  left: 170px;
+  top: 28px;
+  width: 76px;
+  height: 92px;
+  border-radius: 10px;
+  border: 2px solid rgba(0,0,0,0.14);
+  background: rgba(255,255,255,0.88);
+  transform: rotate(-8deg);
+}
+
+.infoBook-illusPdf2 {
+  left: 240px;
+  top: 44px;
+  transform: rotate(10deg);
+  opacity: 0.9;
+}
+
+.infoBook-illusCloud {
+  position: absolute;
+  right: 26px;
+  top: 30px;
+  width: 92px;
+  height: 52px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(0,0,0,0.10);
+}
+
+.infoBook-illusLock {
+  position: absolute;
+  right: 44px;
+  top: 86px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(0,0,0,0.10);
+}
+
+.infoBook-caption {
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.2px;
+  opacity: 0.7;
+  margin-top: 8px;
+}
+
+.infoBook-icon {
+  color: rgba(18, 22, 30, 0.75);
+}
+
+/* New TOC layout */
+.infoBook-tocRail {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  bottom: 16px;
+  width: 3px;
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.65), rgba(245, 158, 11, 0.55));
+  border-radius: 999px;
+  opacity: 0.55;
+}
+
+.infoBook-tocList {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.infoBook-tocRow {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.70);
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  text-align: left;
+}
+
+.infoBook-tocRow:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(0,0,0,0.12);
+  background: rgba(255,255,255,0.80);
+}
+
+.infoBook-tocRowSelected {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.30);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.16) inset;
+}
+
+.infoBook-tocRowIcon {
+  grid-template-columns: 28px 1fr auto;
+}
+
+.infoBook-tocIcon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+}
+
+.infoBook-tocIndex {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.infoBook-tocText {
+  font-family: ui-serif, Georgia, 'Times New Roman', Times, serif;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+}
+
+.infoBook-tocPageMono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+  opacity: 0.62;
+}
+
+/* Chapter layout helpers */
+.infoBook-chapterHeader {
+  font-family: ui-serif, Georgia, 'Times New Roman', Times, serif;
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: 0.2px;
+  margin: 0 0 10px;
+}
+
+.infoBook-heroIllustration {
+  height: 160px;
+  border-radius: 14px;
+  border: 1px dashed rgba(0,0,0,0.18);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(245, 158, 11, 0.12));
+  display: grid;
+  place-items: center;
+  color: rgba(18, 22, 30, 0.72);
+  margin-bottom: 12px;
+}
+
+.infoBook-twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.infoBook-sectionTitle {
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.45px;
+  text-transform: uppercase;
+  opacity: 0.75;
+  margin: 0 0 6px;
+}
+
+.infoBook-blueUnderline {
+  height: 2px;
+  width: 72px;
+  background: rgba(56, 189, 248, 0.85);
+  border-radius: 999px;
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.28);
+  margin-bottom: 10px;
+}
+
+.infoBook-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: ui-serif, Georgia, 'Times New Roman', Times, serif;
+  font-size: 14px;
+  line-height: 1.45;
+  margin: 6px 0;
+}
+
+.infoBook-lineDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.85);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.30);
+  flex: 0 0 auto;
+}
+
+.infoBook-stepCards {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.infoBook-stepCard {
+  border-radius: 14px;
+  padding: 14px 12px;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight: 750;
+  letter-spacing: 0.2px;
+  border: 1px solid rgba(0,0,0,0.10);
+  box-shadow: 0 14px 30px rgba(0,0,0,0.10);
+}
+
+.infoBook-stepCardA { background: rgba(56, 189, 248, 0.14); }
+.infoBook-stepCardB { background: rgba(168, 85, 247, 0.12); }
+.infoBook-stepCardC { background: rgba(245, 158, 11, 0.14); }
+
+.infoBook-miniThumbs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.infoBook-miniThumb {
+  height: 84px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(255,255,255,0.75);
+}
+
+.infoBook-diagramWide {
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.72);
+  padding: 12px;
+}
+
+.infoBook-diagramLabel {
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.45px;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-bottom: 8px;
+}
+
+.infoBook-diagramCanvas {
+  display: grid;
+  grid-template-columns: 90px 1fr 120px;
+  gap: 10px;
+}
+
+.infoBook-diagramThumbs,
+.infoBook-diagramMain,
+.infoBook-diagramProps {
+  border-radius: 12px;
+  border: 1px dashed rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.75);
+  display: grid;
+  place-items: center;
+  color: rgba(18, 22, 30, 0.70);
+  height: 180px;
+  font-size: 12px;
+}
+
+.infoBook-featureGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.infoBook-featureCard {
+  height: 110px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.74);
+  display: grid;
+  place-items: center;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight: 700;
+}
+
+.infoBook-centerStage {
+  margin-top: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.72);
+  padding: 14px;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+}
+
+.infoBook-pageThumbBig {
+  width: 220px;
+  height: 140px;
+  border-radius: 14px;
+  border: 1px dashed rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.78);
+}
+
+.infoBook-reorderArrows {
+  font-size: 24px;
+  opacity: 0.7;
+}
+
+.infoBook-gestureRow {
+  display: flex;
+  gap: 8px;
+}
+
+.infoBook-gesture {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(255,255,255,0.78);
+}
+
+.infoBook-beforeAfterGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.infoBook-beforeAfter {
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.74);
+  padding: 12px;
+}
+
+.infoBook-beforeAfterLabel {
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight: 750;
+  opacity: 0.8;
+  margin-bottom: 10px;
+}
+
+.infoBook-beforeAfterSteps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  opacity: 0.75;
+}
+
+.infoBook-textboxMock {
+  position: relative;
+  height: 150px;
+  border-radius: 14px;
+  border: 1px dashed rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.76);
+  margin-top: 10px;
+}
+
+.infoBook-textboxInner {
+  padding: 18px;
+  opacity: 0.72;
+}
+
+.infoBook-textboxHandle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.80);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.30);
+  left: 12px;
+  top: 12px;
+}
+
+.infoBook-textboxHandle2 { left: auto; right: 12px; top: 12px; }
+.infoBook-textboxHandle3 { left: 12px; top: auto; bottom: 12px; }
+.infoBook-textboxHandle4 { left: auto; right: 12px; top: auto; bottom: 12px; }
+
+.infoBook-stylePanelMock {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.72);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size: 12px;
+  opacity: 0.78;
+}
+
+.infoBook-listGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.infoBook-listBox {
+  height: 110px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.74);
+  padding: 10px 12px;
+  white-space: pre-line;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+  opacity: 0.78;
+}
+
+.infoBook-maskGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.infoBook-maskCard {
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.74);
+  padding: 10px;
+  display: grid;
+  place-items: center;
+}
+
+.infoBook-maskShape {
+  width: 70px;
+  height: 70px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(245, 158, 11, 0.18));
+  border: 1px solid rgba(0,0,0,0.12);
+  box-shadow: 0 14px 30px rgba(0,0,0,0.10);
+}
+
+.infoBook-maskRound { border-radius: 18px; }
+.infoBook-maskStar {
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+.infoBook-maskPoly {
+  clip-path: polygon(10% 20%, 50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%);
+}
+
+.infoBook-flowchart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 180px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.72);
+  margin-top: 12px;
+}
+
+.infoBook-flowNode {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(56, 189, 248, 0.12);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight: 700;
+}
+
+.infoBook-flowArrow { opacity: 0.6; }
+
+.infoBook-swatches {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.infoBook-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.75);
+  border: 1px solid rgba(0,0,0,0.12);
+}
+
+.infoBook-swatch2 { background: rgba(168, 85, 247, 0.70); }
+.infoBook-swatch3 { background: rgba(245, 158, 11, 0.75); }
+.infoBook-swatch4 { background: rgba(16, 185, 129, 0.68); }
+
+.infoBook-highlightDemo,
+.infoBook-exportMock {
+  height: 150px;
+  border-radius: 14px;
+  border: 1px dashed rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.74);
+  display: grid;
+  place-items: center;
+  margin-top: 10px;
+  opacity: 0.8;
+}
+
+.infoBook-sliderDemo {
+  margin-top: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  opacity: 0.75;
+}
+
+.infoBook-inkStrokes {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.infoBook-inkStroke {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.72);
+}
+
+.infoBook-inkStroke2 { background: rgba(168, 85, 247, 0.62); }
+.infoBook-inkStroke3 { background: rgba(245, 158, 11, 0.70); height: 7px; }
+
+.infoBook-signatureBox,
+.infoBook-noteBox {
+  height: 140px;
+  border-radius: 14px;
+  border: 1px dashed rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.74);
+  display: grid;
+  place-items: center;
+  margin-top: 12px;
+  opacity: 0.8;
+}
+
+.infoBook-sampleRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.infoBook-sample {
+  height: 120px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.72);
+  display: grid;
+  place-items: center;
+  opacity: 0.82;
+}
+
+.infoBook-checklist {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+.infoBook-checklist label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.74);
+}
+
+.infoBook-stamp {
+  margin-top: 18px;
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  letter-spacing: 2px;
+  font-weight: 800;
+  opacity: 0.55;
+  transform: rotate(-8deg);
+}
+
+.infoBook-driveFolder {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.74);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight: 700;
+}
+
+.infoBook-driveList {
+  margin-top: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.74);
+  overflow: hidden;
+}
+
+.infoBook-driveRow {
+  padding: 10px 12px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  opacity: 0.84;
+}
+
+.infoBook-driveRow:first-child { border-top: none; }
+
+.infoBook-syncArrows {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 18px;
+  opacity: 0.65;
+}
+
+.infoBook-trustDiagram {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.infoBook-trustNode {
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(255,255,255,0.74);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight: 700;
+  opacity: 0.84;
+}
+
+.infoBook-trustArrow { opacity: 0.6; }
+
+.infoBook-trustLock {
+  display: grid;
+  place-items: center;
+  margin-top: 18px;
+  opacity: 0.7;
+}
+
+.infoBook-lockHero {
+  margin-top: 12px;
+  height: 210px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.74);
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.infoBook-lockHalo {
+  position: absolute;
+  inset: -40px;
+  background: radial-gradient(240px 240px at 50% 50%, rgba(56, 189, 248, 0.22), rgba(255,255,255,0));
+}
+
+.infoBook-lockIcon {
+  position: relative;
+  width: 70px;
+  height: 70px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: rgba(18,22,30,0.06);
+  border: 1px solid rgba(0,0,0,0.10);
+}
+
+.infoBook-lockPdf {
+  position: absolute;
+  bottom: 18px;
+  right: 18px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  letter-spacing: 1px;
+  opacity: 0.55;
+}
+
+.infoBook-timeline {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.infoBook-timelineItem {
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.74);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  opacity: 0.84;
+}
+
+.infoBook-keyboardGrid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+}
+
+.infoBook-key {
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(255,255,255,0.74);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  text-align: center;
+  opacity: 0.82;
+}
+
+.infoBook-stickyRow {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.infoBook-sticky {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight: 700;
+  opacity: 0.86;
+}
+
+.infoBook-stickyA { background: rgba(245, 158, 11, 0.16); }
+.infoBook-stickyB { background: rgba(56, 189, 248, 0.14); }
+.infoBook-stickyC { background: rgba(168, 85, 247, 0.12); }
+
+.infoBook-creditsBorder {
+  position: absolute;
+  inset: 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.14);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.35) inset;
+  pointer-events: none;
+}
+
+.infoBook-qr {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  border: 1px dashed rgba(0,0,0,0.22);
+  background: rgba(255,255,255,0.70);
+  display: grid;
+  place-items: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  opacity: 0.65;
+}
+
+.infoBook-epilogue {
+  text-align: center;
+  font-size: 18px;
+  line-height: 1.6;
+  opacity: 0.9;
+}
+
+.infoBook-cover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to right, rgba(255,255,255,0.06), rgba(255,255,255,0) 18%, rgba(0,0,0,0.16) 55%, rgba(255,255,255,0.04)),
+    radial-gradient(900px 480px at 40% 20%, rgba(255,255,255,0.10), rgba(0,0,0,0));
+  opacity: 0.95;
+  pointer-events: none;
+}
+
+.infoBook-coverInner {
+  position: absolute;
+  inset: 28px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.10);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.18) inset;
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.infoBook-coverCenter {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.infoBook-coverFooter {
+  width: 100%;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.infoBook-coverByline {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  opacity: 0.75;
+  color: rgba(255,255,255,0.82);
+  text-transform: lowercase;
+}
+
+.infoBook-coverTitle {
+  font-family: ui-serif, Georgia, 'Times New Roman', Times, serif;
+  font-size: 44px;
+  letter-spacing: 0.8px;
+  color: rgba(255,255,255,0.92);
+}
+
+.infoBook-coverTag {
+  margin-top: 10px;
+  font-size: 14px;
+  color: rgba(255,255,255,0.72);
+}
+
+.infoBook-coverHint {
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+/* Controls */
+.infoBook-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(18, 22, 30, 0.58);
+  color: rgba(255,255,255,0.92);
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 160ms ease, transform 160ms ease;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+}
+
+.infoBook-container:hover .infoBook-arrow {
+  opacity: 0.95;
+}
+
+.infoBook-arrow:hover {
+  background: rgba(18, 22, 30, 0.72);
+  transform: translateY(-50%);
+}
+
+
+.infoBook-arrowDisabled {
+  opacity: 0.32;
+  cursor: default;
+}
+
+.infoBook-arrow.infoBook-leftArrow { left: 12px; }
+.infoBook-arrow.infoBook-rightArrow { right: 12px; }
+
+.infoBook-edge {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  width: 40px;
+  cursor: pointer;
+  z-index: 20;
+}
+
+.infoBook-edge.infoBook-edgeLeft { left: 10px; }
+.infoBook-edge.infoBook-edgeRight { right: 10px; }
+
+/* Page turner */
+.infoBook-pageTurner {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  width: calc(50% - 20px);
+  transform-style: preserve-3d;
+  z-index: 15;
+}
+
+.infoBook-pageTurner.infoBook-turnNext {
+  right: 10px;
+  transform-origin: left center;
+  animation: infoBook-flip-next 760ms cubic-bezier(0.22, 0.62, 0.10, 1) both;
+}
+
+.infoBook-pageTurner.infoBook-turnPrev {
+  left: 10px;
+  transform-origin: right center;
+  animation: infoBook-flip-prev 760ms cubic-bezier(0.22, 0.62, 0.10, 1) both;
+}
+
+.infoBook-pageFace {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+
+.infoBook-pageFace.infoBook-back {
+  transform: rotateY(180deg);
+}
+
+.infoBook-loading {
+  font-size: 13px;
+  opacity: 0.65;
+}
+
+
+
